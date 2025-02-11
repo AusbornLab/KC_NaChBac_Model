@@ -98,7 +98,7 @@ def createElectrode(somaSection, pySectionList):
     return pySectionList, electrodeSec
 
 def initializeModel(morph_file, resting_ev=None, sizsection = None, Channels = False, capacitance = None, axial_resistivity = None, gleak_conductance= None, erev = None):
-    """Initializes the model with the give parameters:
+    """Initializes the model with the given parameters:
     resting_ev: membrane potential the cell sits at, which gets changed for simulations when initializing
     sizsection: The spike initiation zone of the model, highlighted in the .swc file with individual nodes labled "dend_12" 
     Channels: False, makes the model passive regardless of what is in this initialize function, (if True, it will give the specified compartments the specified conductances for each channl
@@ -212,11 +212,23 @@ def run():
 #####################
 #Passive property fitting
 
-def passive_fitting(initial_mV, electrodeSec, somaSection, currents=None, erev=None, continueRun=200, injDur=None, delay=None, type=None, flynum = None,):
+def passive_fitting(initial_mV, electrodeSec, somaSection, currents=None, continueRun=200, injDur=None, delay=None, type=None, flynum = None,):
     """
+    Parameters:
+        initial_mV: resting membrane potential to initialize the model from
+        electrodeSec: electrode section inserted into soma
+        somaSection: section to insert the electrode into, and stimulate using a current clamp point process
+        currents: The current injections you want to provide for the simulations (note this is in nA)
+        continueRun: How long the simulation will go for 
+        injDur: Duration of the step wise current injection (ms)
+        delay: Delay of time before current injections (ms)
+        type: Can be "nachbac" or "wt" depending on the cell you are trying to fit
+        flynum: The number of which fly data you will be comparing against
     
-    type:
-    flynum: 
+    Returns:
+        simulated_traces: All the traces from the simulations.
+        time_points_np: Provides individual time points as a numpy array.
+        current_export: Provides a specific current injection simulation used for RMSE calculations, can be changed to be any current injenjecito, but set to -30 pA.
     """
     h.dt = 0.1
     coreneuron.enable = True
@@ -250,7 +262,7 @@ def passive_fitting(initial_mV, electrodeSec, somaSection, currents=None, erev=N
 
     for current in currents:
         # Set up current clamp
-        stimobj = h.IClamp(electrodeSec(0.5))
+        stimobj = h.IClamp(somaSection(0.5))
         stimobj.delay = delay
         stimobj.dur = injDur
         stimobj.amp = current
@@ -302,10 +314,10 @@ def Calculate_RMSE(start_index, end_index, time_data, current_data, simulated_tr
     Compare a selected simulated trace against experimental data.
 
     Parameters:
-    - start_index, end_index: Indices defining the range for RMSE calculation.
-    - time_data, current_data: Experimental time and voltage data.
-    - simulated_traces: Full list of simulated traces from passive_fitting.
-    - trace_index: Index of the specific simulated trace to use.
+        start_index, end_index: Indices defining the range for RMSE calculation.
+        time_data, current_data: Experimental time and voltage data.
+        simulated_traces: Full list of simulated traces from passive_fitting.
+        trace_index: Index of the specific simulated trace to use.
 
     Returns:
     - RMSE value for the selected trace.
@@ -350,6 +362,17 @@ def normalize_traces(type = None, flynum = None, plots = False, traces = False, 
     """ There are 2 possible types wt, nachbac
     there are 10 flies for wt
     There are 14 flies for nachbac
+    Function base line subtracts each of traces to the average resting membrane potential using the initial 200 ms of the recording prior to injection any current
+
+    Parameters:
+        type: Can be "nachbac" or "wt" depending on the cell you are trying to fit
+        flynum: The number of which fly data you will be comparing against
+        plots: If False will just return the data (hyperpolarizing current injection and time points)
+        traces: If false then it will use current_start and current_end that are provided, if True defaults to -30 to 60
+        current_start: The beginning current injection to normalize from (pA)
+        current_end: The ending current injection to normalize (pA)
+    Returns:
+        Time_points: a data column with indidivual time points, and normalized_current the current injections that have been baseline subtracted
     """
     flynum = str(flynum) 
     if type == "wt":
@@ -377,7 +400,7 @@ def normalize_traces(type = None, flynum = None, plots = False, traces = False, 
     overall_avg_initial = initial_avg_per_trace.mean()
 
     # Normalize each trace: Subtract its own initial 200 ms mean and add the overall average
-    normalized_hyperpol_current = hyperpol_current.subtract(initial_avg_per_trace, axis=1).add(overall_avg_initial)
+    normalized_current = hyperpol_current.subtract(initial_avg_per_trace, axis=1).add(overall_avg_initial)
 
     # Plotting the original and normalized traces side by side
     fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(14, 6))
@@ -403,9 +426,9 @@ def normalize_traces(type = None, flynum = None, plots = False, traces = False, 
 
     # Plot normalized traces only within the specified current range
     current_value = current_start
-    for column in normalized_hyperpol_current.columns[start_column_index:end_column_index + 1]:
+    for column in normalized_current.columns[start_column_index:end_column_index + 1]:
         # Plot the trace with the current value as the label
-        ax2.plot(time_points, normalized_hyperpol_current[column], label=f'{current_value} pA')
+        ax2.plot(time_points, normalized_current[column], label=f'{current_value} pA')
         
         # Increment the current value for the label
         current_value += 10
@@ -423,7 +446,7 @@ def normalize_traces(type = None, flynum = None, plots = False, traces = False, 
     if plots == True:
         plt.show()
     elif plots == False:
-        return time_points, normalized_hyperpol_current
+        return time_points, normalized_current
 
 def plot_iv_curve(simulated_traces, injDur, delay, inject_time):
     """
@@ -527,6 +550,7 @@ def plot_spike_count_vs_current(csv_file):
     plt.show()
 
 def plot_spike_counts_vs_currents(csv1=None, csv2=None):
+    """Takes in 2 csv files, WT and nachbac data and generates various plots to visualize spike counts vs current across simulations"""
     # Load data
     wt = pd.read_csv(csv1)
     data = wt.copy()  # Start with WT data
@@ -773,7 +797,22 @@ def NaChBac_tau_plotting():
 #Simulations
 
 def Varying_nachbac_soma_current_injections(initial_mV, electrodeSec, somaSection, currents=None, continueRun=None, injDur=None, delay = None, type = None):
-    """"Simulation injections current into soma of model, keeps track of the current, nachbac cond. and the number of spikes for each injection
+    """"Simulation of current injections into soma of model, keeps track of the current, nachbac cond. and the number of spikes for each injection
+    Parameters:
+        initial_mV: resting membrane potential to initialize the model from
+        electrodeSec: electrode section inserted into soma
+        somaSection: section to insert the electrode into, and stimulate using a current clamp point process
+        currents: The current injections you want to provide for the simulations (note this is in nA)
+        continueRun: How long the simulation will go for 
+        injDur: Duration of the step wise current injection (ms)
+        delay: Delay of time before current injections (ms)
+        type: Can be "nachbac" or "wt" depending on the cell you are trying to fit.
+
+    Returns:
+        -saves a csv file with the data Current (nA), Spike Count Firing Frequency (Hz), Conductance of nachbac
+    }
+
+
     """
     h.dt = 0.1
     print(h.dt)
@@ -916,7 +955,26 @@ def Varying_nachbac_soma_current_injections(initial_mV, electrodeSec, somaSectio
 
 def Soma_current_injections(initial_mV, electrodeSec, somaSection, currents=None, continueRun=None, injDur=None, delay = None, type = None, manipulation = False, flynum = None):
     """"Simulation is a sensitivity analysis, simple current injection simulation with given current in pA across conditions WT, and  nachbac
-    This is to compare the firing frequencies across model types for giving current injections."""
+    This is to compare the firing frequencies across model types for giving current injections.
+    
+    Parameters:
+        initial_mV: resting membrane potential to initialize the model from
+        electrodeSec: electrode section inserted into soma
+        somaSection: section to insert the electrode into, and stimulate using a current clamp point process
+        currents: The current injections you want to provide for the simulations (note this is in nA)
+        continueRun: How long the simulation will go for 
+        injDur: Duration of the step wise current injection (ms)
+        delay: Delay of time before current injections (ms)
+        type: Can be "nachbac" or "wt" depending on the cell you are trying to fit.
+        manipulation: If true then para was NOT decreased in the simulation, if false then para was decreased
+        flynum: Which fly the simulation is associated with (which passive property set is used)
+
+    Returns:
+    - a csv with currents (nA), spike Counts, firing frequency (Hz) sim_type, whether Para was decreased or not, and the fly the simulation is associated with
+    }
+    
+    """
+    
     h.dt = 0.1
     print(h.dt)
     coreneuron.enable = True
@@ -1097,6 +1155,23 @@ def Soma_current_injections(initial_mV, electrodeSec, somaSection, currents=None
         print(f"Simulation results saved to {csv_filename}")
 
 def runSimAndNormalize(initial_mV, electrodeSec, somaSection, currents=None, continueRun=200, injDur=None, delay=None, type=None, flynum = None, current_start = None, current_end = None):
+    """
+    Parameters:
+        initial_mV: resting membrane potential to initialize the model from
+        electrodeSec: electrode section inserted into soma
+        somaSection: section to insert the electrode into, and stimulate using a current clamp point process
+        currents: The current injections you want to provide for the simulations (note this is in nA)
+        continueRun: How long the simulation will go for 
+        injDur: Duration of the step wise current injection (ms)
+        delay: Delay of time before current injections (ms)
+        type: Can be "nachbac" or "wt" depending on the cell you are trying to fit.
+        flynum: Which fly the simulation is associated with (which passive property set is used)
+        current_start: The beginning current injection to normalize from (pA)
+        current_end: The ending current injection to normalize (pA)
+
+    """
+    
+    
     start = clock.time()
 
     # CoreNEURON settings
@@ -1280,7 +1355,17 @@ def runSimAndNormalize(initial_mV, electrodeSec, somaSection, currents=None, con
 
 def single_comp_model_VC_nachbac(initial_mV, voltages=None, continueRun=None, inject_time=None, injDur=None, delay = None):
     """Function is a simplified voltage clamp protocal to generate an I-V curve for the NaChBac channel 
-        comparing back to the I-V curve from Strege et al 2023 (https://doi.org/10.7554/eLife.79271)"""
+        comparing back to the I-V curve from Strege et al 2023 (https://doi.org/10.7554/eLife.79271)
+  
+    Parameters:
+        initial_mV: resting membrane potential to initialize the model from
+        continueRun: How long the simulation will go for 
+        injDur: Duration of the injection time 
+        inject_time: preclamp injection time
+        delay: Delay of time before current injections (ms)
+        
+
+        """
     # Define the soma and its properties
     soma = h.Section(name="soma")
     soma.L = 6.98
@@ -1395,6 +1480,11 @@ def single_comp_model_VC_nachbac(initial_mV, voltages=None, continueRun=None, in
 #Stastitical testing
 
 def run_stats(column=None):
+    """
+    Functions to run stats, checking normality, via shapiro-wilk, equality of variance via levenes test, and t-test based on levenes results
+    Parameter:
+        column: which column within the parameters list to compare across model types ex. nat_siz, nap_siz, nat_axon etc
+    """
     if column is None:
         raise ValueError("Please provide a column name to analyze.")
 
@@ -1480,9 +1570,9 @@ def run_stats(column=None):
 #####################
 
 def main():
-    morph_file = ("720575940606954507_skeletonized_um_model.swc")
-    #WT passive property sets:
+    morph_file = ("720575940606954507_skeletonized_um_model.swc") #morphology swc model
 
+    #WT passive property sets:
     #wt fly 8
     # raVal = 110
     # gleakVal = 0.000110
@@ -1539,7 +1629,7 @@ def main():
     #Fitting passive properties of multiple current injections
     resting_ev = -60 #The initializing membrane potential
     currents_list = [-0.04, -0.03, -0.02, -0.01, 0]
-    simulated_traces, time_points_np, current_export = passive_fitting(resting_ev, electrodeSec, somaSection, currents=currents_list, erev=resting_ev, continueRun=2000, injDur=1000, delay = 231.4, type = "wt", flynum = 9)
+    simulated_traces, time_points_np, current_export = passive_fitting(resting_ev, electrodeSec, somaSection, currents=currents_list, continueRun=2000, injDur=1000, delay = 231.4, type = "wt", flynum = 9)
     
     # #RMSE for beginning and end of current injections to fit time constants, calculates RMSE for the beginning and ending of the current injection matching the time constants. 
     Calculate_RMSE(start_index=11000, end_index=16000, time_data=time_points_np, current_data=current_export, simulated_traces=simulated_traces, trace_index=3)
