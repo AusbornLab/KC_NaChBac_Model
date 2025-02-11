@@ -8,7 +8,7 @@ Scripts are written in matlab for data extraction from electrophysiology recorde
 
 1. Generation of gamma-Kenyon cell skeleton model from full adult fly brain EM dataset (skeletonization.py) 
 2. Manually proofread skeleton models using Neutube (https://neutracing.com/) / Meshlab (https://www.meshlab.net/) (Proofread.R)
-3. Obtain ephys data --------> Process in matlab/extract data for comparisons with simulations (abfload.m)
+3. Obtain ephys data --------> Process in matlab/extract data for comparisons with simulations (abfload.m to read data, and extracting_data.m to generate csv files)
 4. Fitting of passive properties/fitting of NaChBac time constants/current injection simulations/plotting of simultion data (Final_KC_sim_file.py)
 
 
