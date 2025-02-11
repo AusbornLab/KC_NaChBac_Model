@@ -1,0 +1,32 @@
+./ks_gunay.c: ../ks_gunay.mod
+	@printf " -> $(C_GREEN)NMODL$(C_RESET) $<\\n"
+	(cd "..";  MODLUNIT=$(NRNUNITS) $(NOCMODL) "ks_gunay.mod" -o "/mnt/c/Users/antho/OneDrive - Drexel University/Documents/KC_Github/x86_64")
+
+./ks_gunay.o: ./ks_gunay.c
+	@printf " -> $(C_GREEN)Compiling$(C_RESET) $<\\n"
+	$(COMPILE) -I".." $(INCLUDES) -fPIC -c $< -o $@
+
+./nap.c: ../nap.mod
+	@printf " -> $(C_GREEN)NMODL$(C_RESET) $<\\n"
+	(cd "..";  MODLUNIT=$(NRNUNITS) $(NOCMODL) "nap.mod" -o "/mnt/c/Users/antho/OneDrive - Drexel University/Documents/KC_Github/x86_64")
+
+./nap.o: ./nap.c
+	@printf " -> $(C_GREEN)Compiling$(C_RESET) $<\\n"
+	$(COMPILE) -I".." $(INCLUDES) -fPIC -c $< -o $@
+
+./nat.c: ../nat.mod
+	@printf " -> $(C_GREEN)NMODL$(C_RESET) $<\\n"
+	(cd "..";  MODLUNIT=$(NRNUNITS) $(NOCMODL) "nat.mod" -o "/mnt/c/Users/antho/OneDrive - Drexel University/Documents/KC_Github/x86_64")
+
+./nat.o: ./nat.c
+	@printf " -> $(C_GREEN)Compiling$(C_RESET) $<\\n"
+	$(COMPILE) -I".." $(INCLUDES) -fPIC -c $< -o $@
+
+./Strege_NaChBac.c: ../Strege_NaChBac.mod
+	@printf " -> $(C_GREEN)NMODL$(C_RESET) $<\\n"
+	(cd "..";  MODLUNIT=$(NRNUNITS) $(NOCMODL) "Strege_NaChBac.mod" -o "/mnt/c/Users/antho/OneDrive - Drexel University/Documents/KC_Github/x86_64")
+
+./Strege_NaChBac.o: ./Strege_NaChBac.c
+	@printf " -> $(C_GREEN)Compiling$(C_RESET) $<\\n"
+	$(COMPILE) -I".." $(INCLUDES) -fPIC -c $< -o $@
+

@@ -1,0 +1,24 @@
+The following packages and versions are necessary to run the provided scripts:
+Scripts were run via the windows subsystem for linux in order to use CoreNEURON. 
+
+Python version: Python 3.10.5
+
+Packages:
+skeletor version: 1.2.1
+fafbseg version: 3.0.10
+numpy version: 1.23.5
+matplotlib version: 3.5.2
+sklearn version : 1.1.2
+scipy version: 1.15.0
+pandas version: 1.4.2
+seaborn version : 0.11.2
+Neuron version : 8.2.0+
+
+
+R version: R version 4.2.0
+
+fafbseg: 0.14.1
+reticulate: 1.28
+elmr: 0.6
+gargle 1.3.0
+nat.templatebrains 1.2
