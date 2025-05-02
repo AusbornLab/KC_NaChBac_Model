@@ -835,7 +835,7 @@ def Varying_nachbac_soma_current_injections(initial_mV, electrodeSec, somaSectio
     currents_used = []
 
     # Set the minimum height for a peak relative to the surrounding depolarization
-    relative_spike_threshold = 2  # in mV, adjustable based on expected spike amplitude
+    relative_spike_threshold = 1  # in mV, adjustable based on expected spike amplitude
 
     # Default currents if not provided
     if currents is None:
@@ -1004,7 +1004,7 @@ def Soma_current_injections(initial_mV, electrodeSec, somaSection, currents=None
     currents_used = []
 
     # Set the minimum height for a peak relative to the surrounding depolarization
-    relative_spike_threshold = 2  # in mV, adjustable based on expected spike amplitude
+    relative_spike_threshold = 1  # in mV, adjustable based on expected spike amplitude
 
     # Default currents if not provided
     if currents is None:
@@ -1904,27 +1904,26 @@ def main():
     currents_list = [-0.03, -0.02, -0.01, 0, 0.01, 0.02, 0.03, .04, .05, .06]
     runSimAndNormalize(initial_mV= resting_ev , electrodeSec=electrodeSec, somaSection=somaSection, currents=currents_list, continueRun=2000, injDur=1000, delay=231.4, type='nachbac', flynum = 14, current_start = -40, current_end = 60)
     
-    #Statistics and plotting for Fig 7, panel H
+    #Plotting of figure # panel H-J
+    # activateCurrentInjectionSOMA_gating_kinetics(resting_ev, sizSection, somaSection, electrodeSec, continueRun=2000, current=0.02, injDur=1000, delay= 231.4, type = "nachbac", plots = True)
+    
+    #Statistics and plotting for Fig 7, panel K
     # run_stats(column = 'nat_siz')
 
-    #Simulations for figure 7, panel I
+    #Simulations for figure 7, panel L
     # currents_list = [-0.04, -0.03, -0.02, -0.01, 0, 0.01, 0.02, 0.03, 0.04, 0.05, 0.06, 0.07, 0.08, 0.09, 0.10] 
-    # Soma_current_injections(resting_ev, electrodeSec, somaSection, currents=currents_list, continueRun=2000, injDur=1000, delay = 231.4, type = "nachbac",  manipulation = True, flynum= 6)
-    
-    #Plotting of figure 7, panel I
-    # plot_spike_counts_vs_currents("wt_simulation_results.csv",  "simulation_results_nachbac_final.csv")
-    
-    #Simluation for figure 7, panel J
+    # Soma_current_injections(resting_ev, electrodeSec, somaSection, currents=currents_list, continueRun=2000, injDur=1000, delay = 231.4, type = "wt",  manipulation = True, flynum= 9)
+
+    #Simluation for figure 7, panel L
     # currents_list = [-0.04, -0.03, -0.02, -0.01, 0, 0.01, 0.02, 0.03, .04, .05, .06, 0.07, 0.08, 0.09, .1]
     # Varying_nachbac_soma_current_injections(resting_ev, electrodeSec, somaSection, currents=currents_list, continueRun=2000, injDur=1000, delay = 231.4, type = "nachbac")
 
-    #Plotting for figure 7 panel J
+    #Plotting of figure 7, panel L
+    # plot_spike_counts_vs_currents("wt_simulation_results.csv",  "simulation_results_nachbac_final.csv")
+    
+    #Plotting for figure 7 panel M
     # plot_spike_count_vs_current('WT_simulation_with_varying_nachbac_cond.csv')
 
-    #Plotting of figure # panel ...
-
-    # activateCurrentInjectionSOMA_gating_kinetics(resting_ev, sizSection, somaSection, electrodeSec, continueRun=2000, current=0.02, injDur=1000, delay= 231.4, type = "nachbac", plots = True)
-    
 
 #Runs the script, uncomment simulations as needed 
 main()
