@@ -10,7 +10,7 @@ UNITS {
 }
 
 : Declare the channel
-: the suffix declaration in the below section refers to the name that this mod file is called by in python/hoc code (see line 20 of the python script)
+: the suffix declaration in the below section refers to the name that this mod file is called by in python/hoc code 
 NEURON {
    SUFFIX na_bac_strege
    USEION na READ ena WRITE ina
@@ -44,7 +44,7 @@ BREAKPOINT {
 : this is where steady state curves are defined
 INITIAL { 
 
-   : values extracted from Strege et al. are tuned by cmaes
+   : values extracted from Strege et al.
    m = 1.0 / (1.0 + exp( (-47.20712608-v) / 8.171491024))
    h = 1.0 / (1.0 + exp( (-56.68326979-v) / -6.078198844 ))
 }

@@ -158,16 +158,16 @@ def initializeModel(morph_file, resting_ev=None, sizsection = None, Channels = F
                 seg.gmax_na_bac_strege = 0.00005
                 seg.ena = 60
         pct = 1
-        # for seg in somaSection:
-        #         seg.gmax_na_bac_strege = 0.015
-        #         seg.ena = 60
+        for seg in somaSection:
+                seg.gmax_na_bac_strege = 0.015
+                seg.ena = 60
               
             
         #Adding channels into axon
         h.nat.insert(h.axon)
         h.ks_gunay.insert(h.axon)
         for seg in h.axon:
-            seg.natgmax_nat = 0.03
+            seg.natgmax_nat = 0.01875
             seg.ksgmax_ks_gunay = 0.015
             seg.ena = 60
             seg.ek = -80
@@ -178,7 +178,7 @@ def initializeModel(morph_file, resting_ev=None, sizsection = None, Channels = F
         h.ks_gunay.insert(sizSection)
 
         for seg in sizSection:
-            seg.natgmax_nat = 0.04
+            seg.natgmax_nat = 0.03
             seg.napgmax_nap = 0.00018
             seg.ksgmax_ks_gunay = 0.2
             seg.gmax_na_bac_strege = 0.0003125*pct
@@ -239,9 +239,9 @@ def passive_fitting(initial_mV, electrodeSec, somaSection, currents=None, contin
 
     # Reading in data, change which individual fly you look at here
     if type == "wt":
-        data = pd.read_csv(f'Ephys Data/Original control wt data/fly_{flynum}_wt_control.csv')
+        data = pd.read_csv(f'Ephys data/Original control wt data/fly_{flynum}_wt_control.csv')
     elif type == "nachbac":
-        data = pd.read_csv(f'Ephys Data/Original nachbac data/fly_{flynum}_nachbac.csv')
+        data = pd.read_csv(f'Ephys data/Original nachbac data/fly_{flynum}_nachbac.csv')
 
     # Extract time points and membrane potential data
     time_points = data.iloc[:, 0] / 100  
@@ -376,9 +376,9 @@ def normalize_traces(type = None, flynum = None, plots = False, traces = False, 
     """
     flynum = str(flynum) 
     if type == "wt":
-        data = pd.read_csv(f'Ephys Data/Original control wt data/fly_{flynum}_wt_control.csv')
+        data = pd.read_csv(f'Ephys data/Original control wt data/fly_{flynum}_wt_control.csv')
     elif type == "nachbac":
-        data = pd.read_csv(f'Ephys Data/Original nachbac data/fly_{flynum}_nachbac.csv')
+        data = pd.read_csv(f'Ephys data/Original nachbac data/fly_{flynum}_nachbac.csv')
     if traces == False:
         current_start = current_start
         current_end = current_end
@@ -1156,7 +1156,7 @@ def Soma_current_injections(initial_mV, electrodeSec, somaSection, currents=None
 
 def runSimAndNormalize(initial_mV, electrodeSec, somaSection, currents=None, continueRun=200, injDur=None, delay=None, type=None, flynum = None, current_start = None, current_end = None):
     """
-    Parameters:
+    Parameters: 
         initial_mV: resting membrane potential to initialize the model from
         electrodeSec: electrode section inserted into soma
         somaSection: section to insert the electrode into, and stimulate using a current clamp point process
@@ -1475,6 +1475,266 @@ def single_comp_model_VC_nachbac(initial_mV, voltages=None, continueRun=None, in
 
     plot_iv_curve(simulated_traces, injDur, delay, inject_time)
 
+
+def activateCurrentInjectionSOMA_gating_kinetics(initial_mV, sizSection, somaSection, electrodeSec, continueRun=150, current=None, injDur=None, delay= None, type = None, plots = False):
+    start = clock.time()
+    h.dt = 0.1
+    coreneuron.enable = True
+    coreneuron.verbose = 0
+    coreneuron.model_stats = True
+    coreneuron.num_gpus = 1
+    h.v_init = initial_mV   # Resting membrane potential 
+
+    if type == "nachbac":
+        na_bac_gate_siz = h.Vector()
+        na_bac_gate_soma = h.Vector()
+        na_bac_h_siz = h.Vector()
+        na_bac_m_siz = h.Vector()
+        na_bac_m_siz.record(sizSection(0.05)._ref_m_na_bac_strege)
+        na_bac_h_siz.record(sizSection(0.05)._ref_h_na_bac_strege)
+        na_bac_gate_siz.record(sizSection(0.05)._ref_ina_na_bac_strege)
+        na_bac_gate_soma.record(somaSection(0.05)._ref_ina2_na_bac_strege)
+        na_bac_current_siz = h.Vector()
+        na_bac_current_siz.record(sizSection(0.05)._ref_ina_na_bac_strege)
+
+    elif type == "wt":
+        pass
+    
+    t_vec = h.Vector()
+    t_vec.record(h._ref_t)
+
+    ks_gunay_m_siz = h.Vector()
+    nap_m_siz = h.Vector()
+    nat_m_siz = h.Vector()
+    nat_h_siz = h.Vector()
+
+    ks_gunay_m_siz.record(sizSection(0.05)._ref_m_ks_gunay)
+    nap_m_siz.record(sizSection(0.05)._ref_m_nap)
+    nat_m_siz.record(sizSection(0.05)._ref_m_nat)
+    nat_h_siz.record(sizSection(0.05)._ref_h_nat)
+        
+    # Measuring current of channel and probability of opening
+    nap_gate_siz = h.Vector()
+    nat_gate_siz = h.Vector()
+    ks_gunay_gate_siz = h.Vector()
+
+
+
+    nap_gate_siz.record(sizSection(0.05)._ref_ina2nap_nap)
+    nat_gate_siz.record(sizSection(0.05)._ref_ina2nat_nat)
+    ks_gunay_gate_siz.record(sizSection(0.05)._ref_ik2_ks_gunay)
+
+    #Measuring current of individual channels
+    nap_current_siz = h.Vector()
+    nachbac_current_siz = h.Vector()
+    nat_current_siz = h.Vector()
+    ks_gunay_current_siz = h.Vector()
+    
+    nap_current_siz.record(sizSection(0.05)._ref_ina_nap)
+    nat_current_siz.record(sizSection(0.05)._ref_ina_nat)
+    ks_gunay_current_siz.record(sizSection(0.05)._ref_ik_ks_gunay)
+
+
+    stimobj = h.IClamp(somaSection(0.5))
+    stimobj.delay = delay
+    stimobj.dur = injDur
+    stimobj.amp = current
+    stimobj.i = 0
+
+    SIZsec = h.Vector()
+    SIZsec.record(sizSection(0.02)._ref_v)
+
+    Somasec = h.Vector().indgen()
+    Somasec.record(somaSection(0.5)._ref_v)
+    Electrodesec = h.Vector()
+    Electrodesec.record(electrodeSec(0.5)._ref_v)
+
+    h.finitialize(initial_mV * mV)
+
+    # Run the simulation
+    h.tstop = continueRun  # ms
+    cnargs = coreneuron.nrncore_arg(h.tstop)
+    run()
+
+    # Arguments for CoreNEURON run
+
+    # Re-initialize and run CoreNEURON
+    # h.stdinit()
+    pc.barrier()
+    pc.nrncore_run(cnargs, 1)
+
+    end = clock.time()
+    print("Execution time of the program is- ", end-start)
+
+
+    # Convert NEURON vectors to NumPy arrays
+    t_numpy = np.array(t_vec)
+    Somasec_numpy = np.array(Somasec)
+
+    # Save data to CSV
+    # filename = f'current_{type}_{current:.2f}.csv'
+    # with open(filename, 'w', newline='') as csvfile:
+    #     csvwriter = csv.writer(csvfile)
+    #     csvwriter.writerow(['Time (ms)', 'Somasec (mV)'])
+    #     for t_val, soma_val in zip(t_numpy, Somasec_numpy):
+    #         csvwriter.writerow([t_val, soma_val])
+
+
+
+    if plots == True:
+        fig, axs = plt.subplots(1, 3, figsize=(12, 4))  # 1 row, 3 columns of subplots
+        # Plot 1
+        axs[0].plot(t_vec, SIZsec, 'r')
+        axs[0].plot(t_vec, Somasec, 'g')
+        axs[0].plot(t_vec, Electrodesec, 'b')
+        axs[0].axhline(y=0, color='black', linestyle='-')
+        axs[0].axhline(y=initial_mV + 10, color='black', linestyle='--')
+        axs[0].set_xlabel('Time (ms)')
+        axs[0].set_ylabel('Voltage (mV)')
+        axs[0].legend(['SIZ', 'Soma', "ElectrodeSec", '0 mV', '10mV from resting'])
+        axs[0].set_title(f'Depolarization of KC in response to SOMA {current} pA current injection')
+
+        # Plot 2
+        
+        # axs[3].plot(t_vec, ks_gunay_gate_siz, label='ks_siz')
+        # axs[3].plot(t_vec, nat_gate_siz, label='nat_siz')
+        # axs[3].plot(t_vec, nap_gate_siz, label='nap_siz')
+        # axs[3].set_xlabel('Time (ms)')
+        # axs[3].set_ylabel('Activation')
+        # axs[3].set_title('Conductance')
+        # axs[3].legend(loc='best')
+
+        # Plot 3
+        # axs[3].plot(t_vec, ks_gunay_current_siz, label='ks_siz')
+        # axs[3].plot(t_vec, nat_current_siz, label='nat_siz')
+        # axs[3].plot(t_vec, nap_current_siz, label='nap_siz')
+        # axs[3].plot(t_vec, na_bac_gate_siz, label='nacbac_siz')
+        # axs[3].set_xlabel('Time (ms)')
+        # axs[3].set_ylabel('Current (mA/cm²)')  # Adjust unit if needed
+        # axs[3].set_title('Current of individual channels')
+        # axs[3].legend(loc='best')
+
+        # Plot 4
+        axs[1].plot(t_vec, nat_m_siz, label='nat_m_siz')
+        axs[1].plot(t_vec, nat_h_siz, label='nat_h_siz')
+        axs[1].plot(t_vec, nap_m_siz, label='nap_m_siz')
+        axs[1].plot(t_vec, ks_gunay_m_siz, label='ks_gunay_m_siz')
+        axs[1].set_xlabel('Time (ms)')
+        axs[1].set_ylabel('Activation')
+        axs[1].set_title('Activation gates')
+
+        axs[2].plot(t_vec, nat_m_siz, label='nat_m_siz')
+        axs[2].plot(t_vec, nat_h_siz, label='nat_h_siz')
+        axs[2].plot(t_vec, nap_m_siz, label='nap_m_siz')
+        axs[2].plot(t_vec, ks_gunay_m_siz, label='ks_gunay_m_siz')
+        axs[2].set_xlabel('Time (ms)')
+        axs[2].set_ylabel('Activation')
+        axs[2].set_title('Activation gates')
+        axs[2].set_xlim(200, 500)
+
+
+        if type == "nachbac":
+            # axs[1].plot(t_vec, na_bac_gate_siz, label='na_bac_siz')
+            # axs[2].plot(t_vec, na_bac_current_siz, label='na_bac_siz')
+            axs[1].plot(t_vec, na_bac_m_siz, label='na_bac_m_siz')
+            axs[1].plot(t_vec, na_bac_h_siz, label='na_bac_h_siz')
+            axs[1].legend(loc='best')
+            axs[2].plot(t_vec, na_bac_m_siz, label='na_bac_m_siz')
+            axs[2].plot(t_vec, na_bac_h_siz, label='na_bac_h_siz')
+            axs[2].legend(loc='best')
+        elif type == "wt":
+            axs[1].legend(loc='best')
+            # axs[2].legend(loc='best')
+        
+        
+        # Adjust layout
+        plt.tight_layout()
+        plt.show()
+    #For individual plots
+
+    # plt.figure(figsize=(12, 8))
+    # plt.plot(t_vec, SIZsec, 'r')
+    # plt.plot(t_vec, Somasec, 'g')
+    # plt.axhline(y=0, color='black', linestyle='-')
+    # plt.axhline(y=initial_mV+10, color='black', linestyle='--')
+    # plt.xlabel('Time (ms)')
+    # plt.ylabel('Voltage (mV)')
+    # plt.plot(t_vec, Electrodesec, 'b')
+    # plt.legend(['SIZ', 'Soma', '0 mV', '10mV from resting', "ElectrodeSec"])
+    # maxSIZ_depol = SIZsec.max()
+    # plt.title('Depolarization of KC in response to SOMA {} pA current injection, SIZ depolarized to {} mV, SIZ depolarized to {} mV above resting'.format(current, round(maxSIZ_depol, 3), round(SIZsec.max() - initial_mV, 3)))
+
+    # plt.figure(figsize=(12, 8))
+    # plt.plot(t_vec, Electrodesec, 'red')
+    # plt.plot(t_vec, SIZsec, 'green')
+    # plt.plot(t_vec, SIZsec2, 'blue')
+    # plt.plot(t_vec, SIZsec3, 'black')
+    # plt.xlabel('Time (ms)')
+    # plt.ylabel('Voltage (mV)')
+    # plt.legend(['Electrode', 'SIZ(0.12)','SIZ(0.5)', 'SIZ(0.99)'])
+    # plt.title('Recordings from different SIZ locations + Electrode')
+
+    # plt.figure(figsize=(12, 8))
+    # plt.plot(t_vec, Electrodesec, 'black')
+    # plt.plot(t_vec, axon1, 'red')
+    # plt.plot(t_vec, axon2, 'orange')
+    # plt.plot(t_vec, axon3, 'yellow')
+    # plt.plot(t_vec, axon4, 'green')
+    # plt.plot(t_vec, axon5, 'blue')
+    # plt.plot(t_vec, axon6, 'violet')
+    # plt.plot(t_vec, axon7, 'cyan')
+    # plt.xlabel('Time (ms)')
+    # plt.ylabel('Voltage (mV)')
+    # plt.legend(['Electrode', 'Axon5','Axon15', 'Axon25', 'Axon35', 'Axon45', 'Axon55', 'Axon125'])
+    # plt.title('Recordings from different SIZ locations + Electrode')
+ 
+    # plt.figure(figsize=(12, 8))
+    # plt.plot(t_vec, na_bac_gate_siz, label='na_bac_siz')
+    # plt.plot(t_vec, na_bac_gate_soma, label='na_bac_soma')
+    # plt.plot(t_vec, ks_gunay_gate_siz, label='ks_siz')
+    # plt.plot(t_vec, nat_gate_siz, label='nat_siz')
+    # plt.plot(t_vec, nap_gate_siz, label='nap_siz')
+    # plt.xlabel('Time (ms)')
+    # plt.ylabel('Activation')
+    # plt.title('Activation gates')
+    # plt.legend(loc='best')  # Automatically finds the best position for the legend
+   
+    # plt.figure(figsize=(12, 8))
+    # plt.plot(t_vec, na_bac_current_siz, label='na_bac_siz')
+    # plt.plot(t_vec, na_bac_current_soma, label='na_bac_soma')
+    # plt.plot(t_vec, ks_gunay_current_siz, label='ks_siz')
+    # plt.plot(t_vec, nat_current_siz, label='nat_siz')
+    # plt.plot(t_vec, nap_current_siz, label='nap_siz')
+    # plt.xlabel('Time (ms)')
+    # plt.ylabel('Current (mA/cm2) <- need to check official units')
+    # plt.title('Current of individual channels')
+    # plt.legend(loc='best')  # Automatically finds the best position for the legend
+
+    # plt.figure(figsize=(12, 8))
+    # plt.plot(t_vec, na_bac_m_soma, label='na_bac_m_soma')
+    # plt.plot(t_vec, na_bac_h_soma, label='na_bac_h_soma')
+    # plt.plot(t_vec, na_bac_m_siz, label='na_bac_m_siz')
+    # plt.plot(t_vec, na_bac_h_siz, label='na_bac_h_siz')
+    # plt.plot(t_vec, nat_m_siz, label='nat_m_siz')
+    # plt.plot(t_vec, nat_h_siz, label='nat_h_siz')
+    # plt.plot(t_vec, nap_m_siz, label='nap_m_siz')
+    # plt.plot(t_vec, ks_gunay_m_siz, label='ks_gunay_m_siz')
+    # plt.xlabel('Time (ms)')
+    # plt.ylabel('Activation')
+    # plt.title('Activation gates')
+    # plt.legend(loc='best')  # Automatically finds the best position for the legend
+   
+    # plt.figure(figsize=(12, 8))
+    # plt.plot(t_vec, na_bac_m_soma, label='na_bac_m_soma')
+    # plt.plot(t_vec, na_bac_h_soma, label='na_bac_h_soma')
+    # plt.plot(t_vec, na_bac_m_siz, label='na_bac_m_siz')
+    # plt.plot(t_vec, na_bac_h_siz, label='na_bac_h_siz')
+    # plt.xlabel('Time (ms)')
+    # plt.ylabel('Activation')
+    # plt.title('Activation gates')
+    # plt.legend(loc='best')
+
+
 #####################
 
 #Stastitical testing
@@ -1580,10 +1840,10 @@ def main():
     # erev = -78.25
 
     #wt fly 9
-    raVal = 100
-    gleakVal = 0.0001115
-    cmVal = 2
-    erev = -71.25
+    # raVal = 100
+    # gleakVal = 0.0001115
+    # cmVal = 2
+    # erev = -71.25
     
     #wt fly 10
     # raVal = 128
@@ -1604,10 +1864,10 @@ def main():
     # erev = -62.5
 
     #NaChBac fly 14 
-    # raVal = 125
-    # gleakVal = 0.0000705
-    # cmVal = 2
-    # erev = -85.75 
+    raVal = 125
+    gleakVal = 0.0000705
+    cmVal = 2
+    erev = -85.75 
 
     cell, allSections_py, allSections_nrn, somaSection, sizSection, erev, axonList, tetherList, dendList, electrodeSec = initializeModel(morph_file, resting_ev= -60.25, Channels=True,  capacitance = cmVal, axial_resistivity = raVal, gleak_conductance= gleakVal, erev = erev)
 
@@ -1627,13 +1887,13 @@ def main():
     #To change the active properties do that in the initializeModel function.
 
     #Fitting passive properties of multiple current injections
-    resting_ev = -60 #The initializing membrane potential
-    currents_list = [-0.04, -0.03, -0.02, -0.01, 0]
-    simulated_traces, time_points_np, current_export = passive_fitting(resting_ev, electrodeSec, somaSection, currents=currents_list, continueRun=2000, injDur=1000, delay = 231.4, type = "wt", flynum = 9)
+    resting_ev = -68 #The initializing membrane potential
+    # currents_list = [-0.04, -0.03, -0.02, -0.01, 0]
+    # simulated_traces, time_points_np, current_export = passive_fitting(resting_ev, electrodeSec, somaSection, currents=currents_list, continueRun=2000, injDur=1000, delay = 231.4, type = "wt", flynum = 9)
     
     # #RMSE for beginning and end of current injections to fit time constants, calculates RMSE for the beginning and ending of the current injection matching the time constants. 
-    Calculate_RMSE(start_index=11000, end_index=16000, time_data=time_points_np, current_data=current_export, simulated_traces=simulated_traces, trace_index=3)
-    Calculate_RMSE(start_index=57000, end_index=70000, time_data=time_points_np, current_data=current_export, simulated_traces=simulated_traces, trace_index=3)
+    # Calculate_RMSE(start_index=11000, end_index=16000, time_data=time_points_np, current_data=current_export, simulated_traces=simulated_traces, trace_index=3)
+    # Calculate_RMSE(start_index=57000, end_index=70000, time_data=time_points_np, current_data=current_export, simulated_traces=simulated_traces, trace_index=3)
     
     #####################
 
@@ -1642,24 +1902,28 @@ def main():
     #Simulation for Fig 7, panel C-G
 
     currents_list = [-0.03, -0.02, -0.01, 0, 0.01, 0.02, 0.03, .04, .05, .06]
-    runSimAndNormalize(initial_mV= resting_ev , electrodeSec=electrodeSec, somaSection=somaSection, currents=currents_list, continueRun=2000, injDur=1000, delay=231.4, type='2day_auxin', flynum = 3, current_start = -40, current_end = 60)
+    runSimAndNormalize(initial_mV= resting_ev , electrodeSec=electrodeSec, somaSection=somaSection, currents=currents_list, continueRun=2000, injDur=1000, delay=231.4, type='nachbac', flynum = 14, current_start = -40, current_end = 60)
     
     #Statistics and plotting for Fig 7, panel H
-    run_stats(column = 'nat_siz')
+    # run_stats(column = 'nat_siz')
 
     #Simulations for figure 7, panel I
-    currents_list = [-0.04, -0.03, -0.02, -0.01, 0, 0.01, 0.02, 0.03, 0.04, 0.05, 0.06, 0.07, 0.08, 0.09, 0.10] 
-    Soma_current_injections(resting_ev, electrodeSec, somaSection, currents=currents_list, continueRun=2000, injDur=1000, delay = 231.4, type = "nachbac",  manipulation = True, flynum= 6)
+    # currents_list = [-0.04, -0.03, -0.02, -0.01, 0, 0.01, 0.02, 0.03, 0.04, 0.05, 0.06, 0.07, 0.08, 0.09, 0.10] 
+    # Soma_current_injections(resting_ev, electrodeSec, somaSection, currents=currents_list, continueRun=2000, injDur=1000, delay = 231.4, type = "nachbac",  manipulation = True, flynum= 6)
     
     #Plotting of figure 7, panel I
-    plot_spike_counts_vs_currents("wt_simulation_results.csv",  "simulation_results_nachbac_final.csv")
+    # plot_spike_counts_vs_currents("wt_simulation_results.csv",  "simulation_results_nachbac_final.csv")
     
     #Simluation for figure 7, panel J
     # currents_list = [-0.04, -0.03, -0.02, -0.01, 0, 0.01, 0.02, 0.03, .04, .05, .06, 0.07, 0.08, 0.09, .1]
-    Varying_nachbac_soma_current_injections(resting_ev, electrodeSec, somaSection, currents=currents_list, continueRun=2000, injDur=1000, delay = 231.4, type = "nachbac")
+    # Varying_nachbac_soma_current_injections(resting_ev, electrodeSec, somaSection, currents=currents_list, continueRun=2000, injDur=1000, delay = 231.4, type = "nachbac")
 
     #Plotting for figure 7 panel J
-    plot_spike_count_vs_current('WT_simulation_with_varying_nachbac_cond.csv')
+    # plot_spike_count_vs_current('WT_simulation_with_varying_nachbac_cond.csv')
+
+    #Plotting of figure # panel ...
+
+    # activateCurrentInjectionSOMA_gating_kinetics(resting_ev, sizSection, somaSection, electrodeSec, continueRun=2000, current=0.02, injDur=1000, delay= 231.4, type = "nachbac", plots = True)
     
 
 #Runs the script, uncomment simulations as needed 
