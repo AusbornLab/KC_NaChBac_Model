@@ -1,6 +1,6 @@
 # KC_NaChBac_Model
 
-This repository accompanys "Ectopic sodium channel expression paradoxically decreases excitability of Drosophila Kenyon cells." (doi: )
+This repository accompanys "Ectopic sodium channel expression paradoxically decreases excitability of Drosophila Kenyon cells." (doi: https://doi.org/10.1113/JP288790)
 
 It contains all code necessary for the development and simulations of the Kenyon cell model.
 
